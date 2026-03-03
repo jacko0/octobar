@@ -4,9 +4,11 @@ import SwiftUI
 /// Preferences window — opened via the Settings… menu item.
 struct SettingsView: View {
     @EnvironmentObject var monitor: TariffMonitor
+    @Environment(\.dismiss) private var dismiss
 
     @State private var apiKeyDraft  = ""
     @State private var revealAPIKey = false
+    @State private var saved        = false
 
     var body: some View {
         Form {
@@ -48,11 +50,21 @@ struct SettingsView: View {
             }
 
             HStack {
+                if saved {
+                    Text("Saved")
+                        .foregroundStyle(.green)
+                        .font(.caption)
+                        .transition(.opacity)
+                }
                 Spacer()
                 Button("Save & Refresh") {
                     monitor.apiKey = apiKeyDraft
                     monitor.saveSettings()
-                    Task { await monitor.refresh() }
+                    withAnimation { saved = true }
+                    Task {
+                        await monitor.refresh()
+                        dismiss()
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.return)

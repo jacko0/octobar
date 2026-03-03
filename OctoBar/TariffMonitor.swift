@@ -18,10 +18,9 @@ final class TariffMonitor: ObservableObject {
     @Published var cheapThreshold: Double
     @Published var notificationsEnabled: Bool
 
-    /// API key is stored in Keychain, not UserDefaults.
     var apiKey: String {
-        get { KeychainHelper.load(forKey: Keys.apiKey) ?? "" }
-        set { KeychainHelper.save(newValue, forKey: Keys.apiKey) }
+        get { UserDefaults.standard.string(forKey: Keys.apiKey) ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.apiKey) }
     }
 
     // MARK: - Private

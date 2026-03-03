@@ -14,6 +14,11 @@ struct MenuContentView: View {
 
             TariffStatusSection(display: monitor.display)
 
+            if !monitor.display.schedule.isEmpty {
+                Divider()
+                DispatchScheduleSection(schedule: monitor.display.schedule)
+            }
+
             Divider()
 
             Text(monitor.display.lastUpdatedLabel)
@@ -37,13 +42,8 @@ private struct MenuHeader: View {
 
     var body: some View {
         HStack {
-            VStack(alignment: .leading) {
-                Text("OctoBar")
-                    .font(.headline)
-                Text("S.Jackson 2026")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-            }
+            Text("OctoBar")
+                .font(.headline)
             Spacer()
             Button {
                 showingInfo.toggle()
@@ -81,6 +81,33 @@ private struct TariffStatusSection: Equatable, View {
     }
 }
 
+// MARK: - Dispatch schedule
+
+private struct DispatchScheduleSection: Equatable, View {
+    let schedule: [ScheduleSlot]
+
+    var body: some View {
+        Text("Tarrif Schedule")
+            .font(.caption.bold())
+            .foregroundStyle(.secondary)
+
+        ForEach(schedule) { slot in
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(slot.isActive ? Color.green : Color.secondary.opacity(0.4))
+                    .frame(width: 6, height: 6)
+                Text(slot.timeRange)
+                    .font(.system(.caption, design: .monospaced))
+                if slot.isActive {
+                    Text("now")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.green)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Button bar (static, never recomputed)
 
 private struct MenuButtonBar: View {
@@ -92,8 +119,8 @@ private struct MenuButtonBar: View {
                 Task { await monitor.refresh() }
             }
 
-            SettingsLink {
-                Text("Settings…")
+            Button("Settings…") {
+                SettingsWindowController.shared.showSettings(monitor: monitor)
             }
 
             Spacer()

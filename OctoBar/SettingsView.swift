@@ -1,12 +1,12 @@
 // File: SettingsView.swift
 import SwiftUI
 
-/// Preferences window — opened via the Settings… menu item.
+/// Preferences window — opened via the Settings… button.
 /// All fields use local @State drafts so keystrokes don't fire objectWillChange
 /// on TariffMonitor (which would cause the menu bar to re-render).
 struct SettingsView: View {
     @EnvironmentObject var monitor: TariffMonitor
-    @Environment(\.dismiss) private var dismiss
+    var onDismiss: () -> Void = {}
 
     @State private var apiKeyDraft     = ""
     @State private var accountDraft    = ""
@@ -31,6 +31,30 @@ struct SettingsView: View {
 
                 TextField("Account Number (e.g. A-AAAA1111)", text: $accountDraft)
                     .textFieldStyle(.roundedBorder)
+
+                HStack {
+                    if saved {
+                        Text("Saved")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                            .transition(.opacity)
+                    }
+                    Spacer()
+                    Button("Save") {
+                        monitor.apiKey = apiKeyDraft
+                        monitor.accountNumber = accountDraft
+                        monitor.cheapThreshold = thresholdDraft
+                        monitor.notificationsEnabled = notifyDraft
+                        monitor.saveSettings()
+                        withAnimation { saved = true }
+                        Task {
+                            await monitor.refresh()
+                            onDismiss()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.return)
+                }
             }
 
             Section("Cheap-Rate Threshold") {
@@ -54,29 +78,13 @@ struct SettingsView: View {
                 Toggle("Alert when cheap rate starts", isOn: $notifyDraft)
             }
 
-            HStack {
-                if saved {
-                    Text("Saved")
-                        .foregroundStyle(.green)
-                        .font(.caption)
-                        .transition(.opacity)
-                }
-                Spacer()
-                Button("Save") {
-                    monitor.apiKey = apiKeyDraft
-                    monitor.accountNumber = accountDraft
-                    monitor.cheapThreshold = thresholdDraft
-                    monitor.notificationsEnabled = notifyDraft
-                    monitor.saveSettings()
-                    withAnimation { saved = true }
-                    Task {
-                        await monitor.refresh()
-                        dismiss()
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.return)
+            Section {
+                Text("S.Jackson 2026")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
+
         }
         .formStyle(.grouped)
         .frame(width: 320)

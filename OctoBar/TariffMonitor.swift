@@ -13,6 +13,7 @@ final class TariffMonitor: ObservableObject {
 
     /// Internal state used by refresh logic — not published directly.
     private(set) var state: TariffState = .unknown
+    private var dispatches: [DispatchSlot] = []
 
     // MARK: - Settings (not @Published — only used in SettingsView bindings, not display)
 
@@ -92,12 +93,14 @@ final class TariffMonitor: ObservableObject {
             async let dispatchFetch = service.fetchDispatchSlots(apiKey: key, accountNumber: account)
 
             let rates = try await ratesFetch
-            let dispatches = (try? await dispatchFetch) ?? []
+            let fetchedDispatches = (try? await dispatchFetch) ?? []
 
             // Process data off the main thread
             let result = await Task.detached {
-                Self.processRates(rates, dispatches: dispatches, threshold: threshold)
+                Self.processRates(rates, dispatches: fetchedDispatches, threshold: threshold)
             }.value
+
+            dispatches = fetchedDispatches
 
             switch result {
             case .noRate:
@@ -204,6 +207,20 @@ final class TariffMonitor: ObservableObject {
         }
 
         d.lastUpdatedLabel = "Updated \(Date().formatted(.relative(presentation: .named)))"
+
+        // Build schedule from dispatch slots (today/tonight only, sorted by start)
+        let now = Date()
+        let fmt = Self.hhmmFormatter
+        d.schedule = dispatches
+            .filter { $0.endDt > now }
+            .sorted { $0.startDt < $1.startDt }
+            .map { slot in
+                ScheduleSlot(
+                    id: slot.startDt,
+                    timeRange: "\(fmt.string(from: slot.startDt)) – \(fmt.string(from: slot.endDt))",
+                    isActive: slot.startDt <= now && slot.endDt > now
+                )
+            }
 
         // Only fire objectWillChange if something actually changed
         if d != display { display = d }

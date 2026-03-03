@@ -90,6 +90,14 @@ enum TariffState: Equatable, Sendable {
     }
 }
 
+// MARK: - Schedule Slot (pre-formatted for display)
+
+struct ScheduleSlot: Equatable, Identifiable {
+    let id: Date
+    let timeRange: String   // e.g. "23:30 – 00:30"
+    let isActive: Bool
+}
+
 // MARK: - Pre-computed Display State (single @Published to minimize objectWillChange)
 
 struct DisplayState: Equatable {
@@ -99,4 +107,5 @@ struct DisplayState: Equatable {
     var statusText: String = "Loading…"
     var timingLabel: String = ""
     var lastUpdatedLabel: String = ""
+    var schedule: [ScheduleSlot] = []
 }

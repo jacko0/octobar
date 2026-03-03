@@ -1,4 +1,5 @@
 // File: OctoBarApp.swift
+import AppKit
 import SwiftUI
 import UserNotifications
 
@@ -17,12 +18,10 @@ struct OctoBarApp: App {
                 .environmentObject(monitor)
         } label: {
             let symbolName = monitor.isCheap ? "bolt.fill" : "bolt"
-            let color: NSColor = monitor.isCheap ? .systemGreen : .systemOrange
-            if let image = menuBarImage(systemName: symbolName, color: color) {
-                Image(nsImage: image)
-                Text(monitor.priceLabel)
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-            }
+            let tint: NSColor = monitor.isCheap ? .systemGreen : .systemOrange
+            Image(nsImage: menuBarImage(systemName: symbolName, tint: tint))
+            Text(monitor.priceLabel)
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
         }
         .menuBarExtraStyle(.window)
 
@@ -32,18 +31,37 @@ struct OctoBarApp: App {
         }
     }
 
-    /// Renders an SF Symbol as a non-template NSImage with the given color,
-    /// so macOS displays it in color in the menu bar.
-    private func menuBarImage(systemName: String, color: NSColor) -> NSImage? {
-        guard let symbol = NSImage(systemSymbolName: systemName, accessibilityDescription: nil) else { return nil }
-        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
-        let configured = symbol.withSymbolConfiguration(config) ?? symbol
-        let image = NSImage(size: configured.size, flipped: false) { rect in
-            color.set()
-            configured.draw(in: rect)
-            return true
+    /// Rasterizes an SF Symbol with the given color baked into the pixels,
+    /// so macOS cannot re-template it in the menu bar.
+    private func menuBarImage(systemName: String, tint: NSColor) -> NSImage {
+        guard let symbol = NSImage(systemSymbolName: systemName, accessibilityDescription: nil) else {
+            return NSImage()
         }
-        image.isTemplate = false
-        return image
+        let sizeConfig = NSImage.SymbolConfiguration(pointSize: 16, weight: .medium)
+        let sized = symbol.withSymbolConfiguration(sizeConfig) ?? symbol
+        let pixelSize = NSSize(width: sized.size.width * 2, height: sized.size.height * 2)
+
+        let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(pixelSize.width),
+            pixelsHigh: Int(pixelSize.height),
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+            isPlanar: false, colorSpaceName: .deviceRGB,
+            bytesPerRow: 0, bitsPerPixel: 0
+        )!
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        // Draw the symbol as a mask, then composite with the tint color
+        let drawRect = NSRect(origin: .zero, size: pixelSize)
+        sized.draw(in: drawRect)
+        tint.set()
+        drawRect.fill(using: .sourceIn)
+        NSGraphicsContext.restoreGraphicsState()
+
+        let result = NSImage(size: sized.size)
+        result.addRepresentation(rep)
+        result.isTemplate = false
+        return result
     }
 }

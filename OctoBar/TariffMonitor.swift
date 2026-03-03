@@ -111,17 +111,41 @@ final class TariffMonitor: ObservableObject {
                 return
             }
 
-            let isCheapNow = current.valueIncVat <= cheapThreshold
+            // Check standard off-peak rate
+            let isCheapByRate = current.valueIncVat <= cheapThreshold
+
+            // Check Intelligent Go dispatch slots
+            var dispatches: [DispatchSlot] = []
+            do {
+                dispatches = try await service.fetchDispatchSlots(apiKey: apiKey, accountNumber: accountNumber)
+            } catch {
+                // Dispatch API may not be available; continue with rate-only check
+            }
+            let activeDispatch = dispatches.first(where: { $0.startDt <= now && $0.endDt > now })
+            let isCheapByDispatch = activeDispatch != nil
+
+            let isCheapNow = isCheapByRate || isCheapByDispatch
             if isCheapNow {
+                let until = activeDispatch?.endDt ?? current.validTo
+                // During a dispatch, show the off-peak rate (lowest available), not the standard band
+                let displayRate = isCheapByDispatch && !isCheapByRate
+                    ? rates.map(\.valueIncVat).min() ?? current.valueIncVat
+                    : current.valueIncVat
                 if !wasCheap && notificationsEnabled { sendNotification() }
                 wasCheap = true
-                state = .cheap(rate: current.valueIncVat, until: current.validTo)
+                state = .cheap(rate: displayRate, until: until)
             } else {
                 wasCheap = false
-                let next = rates
+                // Next cheap: earliest of next off-peak rate or next dispatch slot
+                let nextOffPeak = rates
                     .filter { $0.valueIncVat <= cheapThreshold && $0.validFrom > now }
                     .map(\.validFrom)
                     .min()
+                let nextDispatch = dispatches
+                    .filter { $0.startDt > now }
+                    .map(\.startDt)
+                    .min()
+                let next = [nextOffPeak, nextDispatch].compactMap { $0 }.min()
                 state = .standard(rate: current.valueIncVat, nextCheap: next)
             }
             lastUpdated = now

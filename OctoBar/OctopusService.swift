@@ -67,6 +67,61 @@ actor OctopusService {
         return try decoder.decode(RatesResponse.self, from: data).results
     }
 
+    // MARK: - Intelligent Go Dispatch Slots
+
+    /// Fetches planned smart-charge dispatch slots via the Octopus GraphQL API.
+    func fetchDispatchSlots(apiKey: String, accountNumber: String) async throws -> [DispatchSlot] {
+        let token = try await obtainGraphQLToken(apiKey: apiKey)
+        return try await fetchPlannedDispatches(token: token, accountNumber: accountNumber)
+    }
+
+    private func obtainGraphQLToken(apiKey: String) async throws -> String {
+        let url = URL(string: "https://api.octopus.energy/v1/graphql/")!
+        let query = """
+        mutation { obtainKrakenToken(input: { APIKey: "\(apiKey)" }) { token } }
+        """
+        let body = try JSONSerialization.data(withJSONObject: ["query": query])
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = body
+
+        let (data, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse,
+              (200...299).contains(http.statusCode)
+        else { throw OctoError.httpError((response as? HTTPURLResponse)?.statusCode ?? 0) }
+
+        let result = try JSONDecoder().decode(GraphQLTokenResponse.self, from: data)
+        return result.data.obtainKrakenToken.token
+    }
+
+    private func fetchPlannedDispatches(token: String, accountNumber: String) async throws -> [DispatchSlot] {
+        let url = URL(string: "https://api.octopus.energy/v1/graphql/")!
+        let query = """
+        query { plannedDispatches(accountNumber: "\(accountNumber)") { startDt endDt } }
+        """
+        let body = try JSONSerialization.data(withJSONObject: ["query": query])
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(token, forHTTPHeaderField: "Authorization")
+        req.httpBody = body
+
+        let (data, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse,
+              (200...299).contains(http.statusCode)
+        else { throw OctoError.httpError((response as? HTTPURLResponse)?.statusCode ?? 0) }
+
+        let decoder = JSONDecoder()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ssxxx"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        decoder.dateDecodingStrategy = .formatted(formatter)
+        return try decoder.decode(GraphQLDispatchResponse.self, from: data).data.plannedDispatches
+    }
+
     // MARK: - HTTP with exponential-backoff retry (3 attempts: wait 1 s, 2 s)
 
     private func fetch(url: URL, apiKey: String, attempt: Int = 1) async throws -> Data {

@@ -10,7 +10,7 @@ struct MenuContentView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 VStack(alignment: .leading) {
-                    Text("OctoBar")
+                    Text("OctoBar v.1.0.2")
                         .font(.headline)
                     Text("S.Jackson 2026")
                         .foregroundStyle(.secondary)

@@ -44,6 +44,30 @@ struct UnitRate: Decodable, Sendable {
     }
 }
 
+// MARK: - Intelligent Dispatch GraphQL API
+
+struct GraphQLTokenResponse: Decodable {
+    let data: TokenData
+    struct TokenData: Decodable {
+        let obtainKrakenToken: TokenResult
+    }
+    struct TokenResult: Decodable {
+        let token: String
+    }
+}
+
+struct GraphQLDispatchResponse: Decodable {
+    let data: DispatchData
+    struct DispatchData: Decodable {
+        let plannedDispatches: [DispatchSlot]
+    }
+}
+
+struct DispatchSlot: Decodable, Sendable {
+    let startDt: Date
+    let endDt: Date
+}
+
 // MARK: - App State
 
 enum TariffState: Equatable, Sendable {

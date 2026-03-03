@@ -1,2 +1,2 @@
 # octobar
-Octopus Energy cheap tariff indicator that live in the Mac OS top bar
+Octopus Energy cheap tariff indicator that lives in the Mac OS top bar

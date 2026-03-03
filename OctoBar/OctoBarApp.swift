@@ -31,9 +31,16 @@ struct OctoBarApp: App {
         }
     }
 
+    private static var cachedImage: NSImage?
+    private static var cachedIsCheap: Bool?
+
     /// Rasterizes an SF Symbol with the given color baked into the pixels,
     /// so macOS cannot re-template it in the menu bar.
     private func menuBarImage(systemName: String, tint: NSColor) -> NSImage {
+        let isCheap = systemName == "bolt.fill"
+        if let cached = Self.cachedImage, Self.cachedIsCheap == isCheap {
+            return cached
+        }
         guard let symbol = NSImage(systemSymbolName: systemName, accessibilityDescription: nil) else {
             return NSImage()
         }
@@ -41,18 +48,17 @@ struct OctoBarApp: App {
         let sized = symbol.withSymbolConfiguration(sizeConfig) ?? symbol
         let pixelSize = NSSize(width: sized.size.width * 2, height: sized.size.height * 2)
 
-        let rep = NSBitmapImageRep(
+        guard let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil,
             pixelsWide: Int(pixelSize.width),
             pixelsHigh: Int(pixelSize.height),
             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
             isPlanar: false, colorSpaceName: .deviceRGB,
             bytesPerRow: 0, bitsPerPixel: 0
-        )!
+        ) else { return sized }
 
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-        // Draw the symbol as a mask, then composite with the tint color
         let drawRect = NSRect(origin: .zero, size: pixelSize)
         sized.draw(in: drawRect)
         tint.set()
@@ -62,6 +68,8 @@ struct OctoBarApp: App {
         let result = NSImage(size: sized.size)
         result.addRepresentation(rep)
         result.isTemplate = false
+        Self.cachedImage = result
+        Self.cachedIsCheap = isCheap
         return result
     }
 }

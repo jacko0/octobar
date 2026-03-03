@@ -89,3 +89,14 @@ enum TariffState: Equatable, Sendable {
         }
     }
 }
+
+// MARK: - Pre-computed Display State (single @Published to minimize objectWillChange)
+
+struct DisplayState: Equatable {
+    var isCheap: Bool = false
+    var priceLabel: String = "—p/kWh"
+    var rateDetail: String = ""
+    var statusText: String = "Loading…"
+    var timingLabel: String = ""
+    var lastUpdatedLabel: String = ""
+}

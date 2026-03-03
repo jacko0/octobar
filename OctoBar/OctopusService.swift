@@ -5,6 +5,29 @@ import Foundation
 actor OctopusService {
     private let session: URLSession
 
+    private static let iso8601Formatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.timeZone = TimeZone(identifier: "Europe/London")!
+        return f
+    }()
+
+    private static let ratesDecoder: JSONDecoder = {
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .iso8601
+        return d
+    }()
+
+    private static let plainDecoder = JSONDecoder()
+
+    private static let dispatchDecoder: JSONDecoder = {
+        let d = JSONDecoder()
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm:ssxxx"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        d.dateDecodingStrategy = .formatted(f)
+        return d
+    }()
+
     init(session: URLSession = .shared) {
         self.session = session
     }
@@ -23,7 +46,7 @@ actor OctopusService {
     private func fetchTariffCode(apiKey: String, accountNumber: String) async throws -> String {
         let url  = URL(string: "https://api.octopus.energy/v1/accounts/\(accountNumber)/")!
         let data = try await fetch(url: url, apiKey: apiKey)
-        let response = try JSONDecoder().decode(AccountResponse.self, from: data)
+        let response = try Self.plainDecoder.decode(AccountResponse.self, from: data)
         guard let code = response.properties
             .flatMap({ $0.electricityMeterPoints })
             .flatMap({ $0.agreements })
@@ -49,8 +72,7 @@ actor OctopusService {
 
     private func fetchUnitRates(apiKey: String, productCode: String, tariffCode: String) async throws -> [UnitRate] {
         let now = Date()
-        let fmt = ISO8601DateFormatter()
-        fmt.timeZone = TimeZone(identifier: "Europe/London")!
+        let fmt = Self.iso8601Formatter
 
         var comps = URLComponents(
             string: "https://api.octopus.energy/v1/products/\(productCode)" +
@@ -61,10 +83,8 @@ actor OctopusService {
             URLQueryItem(name: "period_to",   value: fmt.string(from: now.addingTimeInterval(129_600)))
         ]
 
-        let data    = try await fetch(url: comps.url!, apiKey: apiKey)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(RatesResponse.self, from: data).results
+        let data = try await fetch(url: comps.url!, apiKey: apiKey)
+        return try Self.ratesDecoder.decode(RatesResponse.self, from: data).results
     }
 
     // MARK: - Intelligent Go Dispatch Slots
@@ -92,7 +112,7 @@ actor OctopusService {
               (200...299).contains(http.statusCode)
         else { throw OctoError.httpError((response as? HTTPURLResponse)?.statusCode ?? 0) }
 
-        let result = try JSONDecoder().decode(GraphQLTokenResponse.self, from: data)
+        let result = try Self.plainDecoder.decode(GraphQLTokenResponse.self, from: data)
         return result.data.obtainKrakenToken.token
     }
 
@@ -114,12 +134,7 @@ actor OctopusService {
               (200...299).contains(http.statusCode)
         else { throw OctoError.httpError((response as? HTTPURLResponse)?.statusCode ?? 0) }
 
-        let decoder = JSONDecoder()
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ssxxx"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try decoder.decode(GraphQLDispatchResponse.self, from: data).data.plannedDispatches
+        return try Self.dispatchDecoder.decode(GraphQLDispatchResponse.self, from: data).data.plannedDispatches
     }
 
     // MARK: - HTTP with exponential-backoff retry (3 attempts: wait 1 s, 2 s)

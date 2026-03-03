@@ -2,13 +2,18 @@
 import SwiftUI
 
 /// Preferences window — opened via the Settings… menu item.
+/// All fields use local @State drafts so keystrokes don't fire objectWillChange
+/// on TariffMonitor (which would cause the menu bar to re-render).
 struct SettingsView: View {
     @EnvironmentObject var monitor: TariffMonitor
     @Environment(\.dismiss) private var dismiss
 
-    @State private var apiKeyDraft  = ""
-    @State private var revealAPIKey = false
-    @State private var saved        = false
+    @State private var apiKeyDraft     = ""
+    @State private var accountDraft    = ""
+    @State private var thresholdDraft  = 9.5
+    @State private var notifyDraft     = false
+    @State private var revealAPIKey    = false
+    @State private var saved           = false
 
     var body: some View {
         Form {
@@ -24,7 +29,7 @@ struct SettingsView: View {
 
                 Toggle("Reveal key", isOn: $revealAPIKey)
 
-                TextField("Account Number (e.g. A-AAAA1111)", text: $monitor.accountNumber)
+                TextField("Account Number (e.g. A-AAAA1111)", text: $accountDraft)
                     .textFieldStyle(.roundedBorder)
             }
 
@@ -33,12 +38,12 @@ struct SettingsView: View {
                     Text("Cheap rate ≤")
                     TextField(
                         "",
-                        value: $monitor.cheapThreshold,
+                        value: $thresholdDraft,
                         format: .number.precision(.fractionLength(1))
                     )
                     .frame(width: 60)
                     .textFieldStyle(.roundedBorder)
-                    Text("p / kWh")
+                    Text("p/KWh")
                 }
                 Text("Default: 9.5 p/kWh (Intelligent Go off-peak rate)")
                     .font(.caption)
@@ -46,7 +51,7 @@ struct SettingsView: View {
             }
 
             Section("Notifications") {
-                Toggle("Alert when cheap rate starts", isOn: $monitor.notificationsEnabled)
+                Toggle("Alert when cheap rate starts", isOn: $notifyDraft)
             }
 
             HStack {
@@ -57,8 +62,11 @@ struct SettingsView: View {
                         .transition(.opacity)
                 }
                 Spacer()
-                Button("Save & Refresh") {
+                Button("Save") {
                     monitor.apiKey = apiKeyDraft
+                    monitor.accountNumber = accountDraft
+                    monitor.cheapThreshold = thresholdDraft
+                    monitor.notificationsEnabled = notifyDraft
                     monitor.saveSettings()
                     withAnimation { saved = true }
                     Task {
@@ -71,7 +79,13 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 400, idealWidth: 440)
-        .onAppear { apiKeyDraft = monitor.apiKey }
+        .frame(width: 320)
+        .fixedSize(horizontal: false, vertical: true)
+        .onAppear {
+            apiKeyDraft = monitor.apiKey
+            accountDraft = monitor.accountNumber
+            thresholdDraft = monitor.cheapThreshold
+            notifyDraft = monitor.notificationsEnabled
+        }
     }
 }

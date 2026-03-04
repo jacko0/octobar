@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OctoBar</RootNamespace>
+    <AssemblyName>OctoBar</AssemblyName>
+    <ApplicationIcon>Resources\bolt.ico</ApplicationIcon>
+  </PropertyGroup>
+</Project>

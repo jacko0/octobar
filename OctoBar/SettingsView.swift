@@ -10,8 +10,8 @@ struct SettingsView: View {
 
     @State private var apiKeyDraft     = ""
     @State private var accountDraft    = ""
-    @State private var thresholdDraft  = 9.5
     @State private var notifyDraft     = false
+    @State private var compactDraft   = false
     @State private var revealAPIKey    = false
     @State private var saved           = false
 
@@ -43,8 +43,8 @@ struct SettingsView: View {
                     Button("Save") {
                         monitor.apiKey = apiKeyDraft
                         monitor.accountNumber = accountDraft
-                        monitor.cheapThreshold = thresholdDraft
                         monitor.notificationsEnabled = notifyDraft
+                        monitor.compactMode = compactDraft
                         monitor.saveSettings()
                         withAnimation { saved = true }
                         Task {
@@ -57,21 +57,8 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Cheap-Rate Threshold") {
-                HStack {
-                    Text("Cheap rate ≤")
-                    TextField(
-                        "",
-                        value: $thresholdDraft,
-                        format: .number.precision(.fractionLength(1))
-                    )
-                    .frame(width: 60)
-                    .textFieldStyle(.roundedBorder)
-                    Text("p/KWh")
-                }
-                Text("Default: 9.5 p/kWh (Intelligent Go off-peak rate)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Section("Menu Bar") {
+                Toggle("Icon only (hide price)", isOn: $compactDraft)
             }
 
             Section("Notifications") {
@@ -92,8 +79,8 @@ struct SettingsView: View {
         .onAppear {
             apiKeyDraft = monitor.apiKey
             accountDraft = monitor.accountNumber
-            thresholdDraft = monitor.cheapThreshold
             notifyDraft = monitor.notificationsEnabled
+            compactDraft = monitor.compactMode
         }
     }
 }

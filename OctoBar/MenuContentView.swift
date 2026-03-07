@@ -54,7 +54,7 @@ private struct MenuHeader: View {
         }
 
         if showingInfo {
-            Text("OctoBar monitors your Octopus Energy Intelligent Go tariff and shows the current unit rate in the menu bar. The icon turns green when cheap rate is active and orange when on standard rate.")
+            Text("OctoBar monitors your Octopus Energy Intelligent Go tariff and shows the current unit rate in the menu bar. The icon turns green when cheap rate is active and red when on standard rate. You can hide the price and show only the icon via the \"Icon only\" toggle in Settings.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

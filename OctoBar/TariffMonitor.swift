@@ -18,8 +18,9 @@ final class TariffMonitor: ObservableObject {
     // MARK: - Settings (not @Published — only used in SettingsView bindings, not display)
 
     var accountNumber: String
-    var cheapThreshold: Double
     var notificationsEnabled: Bool
+    var compactMode: Bool
+    private let cheapThreshold: Double = 9.5
 
     var apiKey: String {
         get { UserDefaults.standard.string(forKey: Keys.apiKey) ?? "" }
@@ -35,8 +36,8 @@ final class TariffMonitor: ObservableObject {
     private enum Keys {
         static let apiKey        = "apiKey"
         static let account       = "accountNumber"
-        static let threshold     = "cheapThreshold"
         static let notifications = "notificationsEnabled"
+        static let compactMode   = "compactMode"
     }
 
     // MARK: - Init
@@ -45,8 +46,7 @@ final class TariffMonitor: ObservableObject {
         let ud = UserDefaults.standard
         accountNumber        = ud.string(forKey: Keys.account) ?? ""
         notificationsEnabled = ud.bool(forKey:   Keys.notifications)
-        let t                = ud.double(forKey:  Keys.threshold)
-        cheapThreshold       = t > 0 ? t : 9.5
+        compactMode          = ud.object(forKey: Keys.compactMode) == nil ? true : ud.bool(forKey: Keys.compactMode)
         startPolling()
     }
 
@@ -60,8 +60,9 @@ final class TariffMonitor: ObservableObject {
     func saveSettings() {
         let ud = UserDefaults.standard
         ud.set(accountNumber, forKey: Keys.account)
-        ud.set(cheapThreshold, forKey: Keys.threshold)
         ud.set(notificationsEnabled, forKey: Keys.notifications)
+        ud.set(compactMode, forKey: Keys.compactMode)
+        updateDerivedState()
     }
 
     // MARK: - Polling
@@ -184,6 +185,7 @@ final class TariffMonitor: ObservableObject {
     private func updateDerivedState() {
         var d = DisplayState()
         d.isCheap = state.isCheap
+        d.compactMode = compactMode
 
         if let r = state.rate {
             let rounded = (r * 10).rounded() / 10

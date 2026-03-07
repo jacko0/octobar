@@ -77,10 +77,12 @@ struct OctoBarApp: App {
                 .environmentObject(monitor)
         } label: {
             let symbolName = monitor.isCheap ? "bolt.fill" : "bolt"
-            let tint: NSColor = monitor.isCheap ? .systemGreen : .systemOrange
+            let tint: NSColor = monitor.isCheap ? .systemGreen : .systemRed
             Image(nsImage: menuBarImage(systemName: symbolName, tint: tint))
-            Text(monitor.priceLabel)
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
+            if !monitor.display.compactMode {
+                Text(monitor.priceLabel)
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+            }
         }
         .menuBarExtraStyle(.window)
     }

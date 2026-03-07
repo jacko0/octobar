@@ -108,4 +108,5 @@ struct DisplayState: Equatable {
     var timingLabel: String = ""
     var lastUpdatedLabel: String = ""
     var schedule: [ScheduleSlot] = []
+    var compactMode: Bool = false
 }

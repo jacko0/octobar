@@ -77,7 +77,7 @@ struct OctoBarApp: App {
                 .environmentObject(monitor)
         } label: {
             let symbolName = monitor.isCheap ? "bolt.fill" : "bolt"
-            let tint: NSColor = monitor.isCheap ? .systemGreen : .systemRed
+            let tint: NSColor = monitor.isCheap ? .systemGreen : .black
             Image(nsImage: menuBarImage(systemName: symbolName, tint: tint))
             if !monitor.display.compactMode {
                 Text(monitor.priceLabel)

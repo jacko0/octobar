@@ -66,7 +66,7 @@ struct SettingsView: View {
             }
 
             Section {
-                Text("Steve.Jackson 2026")
+                Text("S.Jackson 2026")
                     .foregroundStyle(.secondary)
                     .font(.caption)
                     .frame(maxWidth: .infinity, alignment: .center)

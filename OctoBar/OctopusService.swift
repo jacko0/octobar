@@ -7,7 +7,8 @@ actor OctopusService {
 
     private static let iso8601Formatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
-        f.timeZone = TimeZone(identifier: "Europe/London")!
+        f.formatOptions = [.withInternetDateTime]
+        f.timeZone = TimeZone(identifier: "UTC")!
         return f
     }()
 
@@ -36,9 +37,11 @@ actor OctopusService {
 
     /// Fetches the array of unit rates covering now ± 38 h for the account's active tariff.
     func fetchRates(apiKey: String, accountNumber: String) async throws -> [UnitRate] {
-        let tariffCode  = try await fetchTariffCode(apiKey: apiKey, accountNumber: accountNumber)
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let account = accountNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tariffCode  = try await fetchTariffCode(apiKey: key, accountNumber: account)
         let productCode = try deriveProductCode(from: tariffCode)
-        return try await fetchUnitRates(apiKey: apiKey, productCode: productCode, tariffCode: tariffCode)
+        return try await fetchUnitRates(apiKey: key, productCode: productCode, tariffCode: tariffCode)
     }
 
     // MARK: - Step 1: Resolve active tariff code
@@ -91,8 +94,10 @@ actor OctopusService {
 
     /// Fetches planned smart-charge dispatch slots via the Octopus GraphQL API.
     func fetchDispatchSlots(apiKey: String, accountNumber: String) async throws -> [DispatchSlot] {
-        let token = try await obtainGraphQLToken(apiKey: apiKey)
-        return try await fetchPlannedDispatches(token: token, accountNumber: accountNumber)
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let account = accountNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        let token = try await obtainGraphQLToken(apiKey: key)
+        return try await fetchPlannedDispatches(token: token, accountNumber: account)
     }
 
     private func obtainGraphQLToken(apiKey: String) async throws -> String {
@@ -110,7 +115,11 @@ actor OctopusService {
         let (data, response) = try await session.data(for: req)
         guard let http = response as? HTTPURLResponse,
               (200...299).contains(http.statusCode)
-        else { throw OctoError.httpError((response as? HTTPURLResponse)?.statusCode ?? 0) }
+        else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            let respBody = String(data: data, encoding: .utf8) ?? ""
+            throw OctoError.httpError(code, url: "/v1/graphql/ (token)", body: respBody)
+        }
 
         let result = try Self.plainDecoder.decode(GraphQLTokenResponse.self, from: data)
         return result.data.obtainKrakenToken.token
@@ -132,7 +141,11 @@ actor OctopusService {
         let (data, response) = try await session.data(for: req)
         guard let http = response as? HTTPURLResponse,
               (200...299).contains(http.statusCode)
-        else { throw OctoError.httpError((response as? HTTPURLResponse)?.statusCode ?? 0) }
+        else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            let respBody = String(data: data, encoding: .utf8) ?? ""
+            throw OctoError.httpError(code, url: "/v1/graphql/ (dispatches)", body: respBody)
+        }
 
         return try Self.dispatchDecoder.decode(GraphQLDispatchResponse.self, from: data).data.plannedDispatches
     }
@@ -149,12 +162,22 @@ actor OctopusService {
             guard let http = response as? HTTPURLResponse,
                   (200...299).contains(http.statusCode)
             else {
-                throw OctoError.httpError((response as? HTTPURLResponse)?.statusCode ?? 0)
+                let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                let body = String(data: data, encoding: .utf8) ?? ""
+                throw OctoError.httpError(code, url: url.path, body: body)
             }
             return data
+        } catch let error as OctoError {
+            // Don't retry client errors (4xx) — they won't resolve on retry
+            if case .httpError(let code, _, _) = error, (400..<500).contains(code) {
+                throw error
+            }
+            guard attempt < 3 else { throw error }
+            let delay = UInt64(pow(2.0, Double(attempt - 1))) * 1_000_000_000
+            try await Task.sleep(nanoseconds: delay)
+            return try await fetch(url: url, apiKey: apiKey, attempt: attempt + 1)
         } catch {
             guard attempt < 3 else { throw error }
-            // Exponential back-off: attempt 1→wait 1s, attempt 2→wait 2s
             let delay = UInt64(pow(2.0, Double(attempt - 1))) * 1_000_000_000
             try await Task.sleep(nanoseconds: delay)
             return try await fetch(url: url, apiKey: apiKey, attempt: attempt + 1)
@@ -167,15 +190,21 @@ actor OctopusService {
 enum OctoError: Error, LocalizedError {
     case noActiveTariff
     case invalidTariffCode(String)
-    case httpError(Int)
+    case httpError(Int, url: String = "", body: String = "")
     case missingCredentials
 
     var errorDescription: String? {
         switch self {
-        case .noActiveTariff:           return "No active electricity tariff found."
-        case .invalidTariffCode(let c): return "Cannot parse tariff code: \(c)"
-        case .httpError(let code):      return "HTTP error \(code)."
-        case .missingCredentials:       return "API key or account number not configured."
+        case .noActiveTariff:
+            return "No active electricity tariff found."
+        case .invalidTariffCode(let c):
+            return "Cannot parse tariff code: \(c)"
+        case .httpError(let code, let url, let body):
+            let detail = body.prefix(200)
+            if url.isEmpty { return "HTTP error \(code)." }
+            return "HTTP \(code) from \(url)\(detail.isEmpty ? "" : ": \(detail)")"
+        case .missingCredentials:
+            return "API key or account number not configured."
         }
     }
 }

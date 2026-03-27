@@ -74,6 +74,7 @@ private struct TariffStatusSection: Equatable, View {
             .opacity(display.rateDetail.isEmpty ? 0 : 1)
 
         Text(display.statusText)
+            .textSelection(.enabled)
 
         Text(display.timingLabel)
             .foregroundStyle(.secondary)
@@ -116,11 +117,17 @@ private struct MenuButtonBar: View {
     var body: some View {
         HStack {
             Button("Refresh") {
-                Task { await monitor.refresh() }
+                let m = monitor
+                DispatchQueue.main.async {
+                    Task { await m.refresh() }
+                }
             }
 
             Button("Settings…") {
-                SettingsWindowController.shared.showSettings(monitor: monitor)
+                let m = monitor
+                DispatchQueue.main.async {
+                    SettingsWindowController.shared.showSettings(monitor: m)
+                }
             }
 
             Spacer()

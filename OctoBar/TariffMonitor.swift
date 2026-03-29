@@ -31,7 +31,9 @@ final class TariffMonitor: ObservableObject {
 
     private let service   = OctopusService()
     private var pollTask: Task<Void, Never>?
+    private var flashTask: Task<Void, Never>?
     private var wasCheap  = false
+    private var previousIsCheap: Bool?
 
     private enum Keys {
         static let apiKey        = "apiKey"
@@ -224,8 +226,36 @@ final class TariffMonitor: ObservableObject {
                 )
             }
 
+        // Carry over flash state (managed separately by startFlashing)
+        d.isFlashing = display.isFlashing
+        d.flashShowCheap = display.flashShowCheap
+
+        // Detect cheap/standard transition and trigger flash
+        if let prev = previousIsCheap, prev != d.isCheap {
+            startFlashing(newIsCheap: d.isCheap)
+        }
+        previousIsCheap = d.isCheap
+
         // Only fire objectWillChange if something actually changed
         if d != display { display = d }
+    }
+
+    func testFlash() {
+        startFlashing(newIsCheap: !display.isCheap)
+    }
+
+    private func startFlashing(newIsCheap: Bool) {
+        flashTask?.cancel()
+        flashTask = Task { [weak self] in
+            // 16 toggles × 250ms = 4 seconds
+            for i in 0..<16 {
+                guard !Task.isCancelled else { return }
+                self?.display.isFlashing = true
+                self?.display.flashShowCheap = (i % 2 == 0) ? !newIsCheap : newIsCheap
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+            self?.display.isFlashing = false
+        }
     }
 
     private static let hhmmFormatter: DateFormatter = {

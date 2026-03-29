@@ -3,22 +3,22 @@ import Foundation
 
 // MARK: - Account API
 
-struct AccountResponse: Decodable {
+nonisolated struct AccountResponse: Decodable, Sendable {
     let properties: [OctoProperty]
 }
 
-struct OctoProperty: Decodable {
+nonisolated struct OctoProperty: Decodable, Sendable {
     let electricityMeterPoints: [MeterPoint]
     enum CodingKeys: String, CodingKey {
         case electricityMeterPoints = "electricity_meter_points"
     }
 }
 
-struct MeterPoint: Decodable {
+nonisolated struct MeterPoint: Decodable, Sendable {
     let agreements: [Agreement]
 }
 
-struct Agreement: Decodable {
+nonisolated struct Agreement: Decodable, Sendable {
     let tariffCode: String
     let validTo: String?        // nil means the agreement is currently active
     enum CodingKeys: String, CodingKey {
@@ -29,7 +29,7 @@ struct Agreement: Decodable {
 
 // MARK: - Rates API
 
-struct RatesResponse: Decodable {
+nonisolated struct RatesResponse: Decodable, Sendable {
     let results: [UnitRate]
 }
 
@@ -46,19 +46,19 @@ struct UnitRate: Decodable, Sendable {
 
 // MARK: - Intelligent Dispatch GraphQL API
 
-struct GraphQLTokenResponse: Decodable {
+nonisolated struct GraphQLTokenResponse: Decodable, Sendable {
     let data: TokenData
-    struct TokenData: Decodable {
+    struct TokenData: Decodable, Sendable {
         let obtainKrakenToken: TokenResult
     }
-    struct TokenResult: Decodable {
+    struct TokenResult: Decodable, Sendable {
         let token: String
     }
 }
 
-struct GraphQLDispatchResponse: Decodable {
+nonisolated struct GraphQLDispatchResponse: Decodable, Sendable {
     let data: DispatchData
-    struct DispatchData: Decodable {
+    struct DispatchData: Decodable, Sendable {
         let plannedDispatches: [DispatchSlot]
     }
 }

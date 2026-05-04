@@ -24,19 +24,6 @@ Never miss a cheap electricity slot again. OctoBar lives in your top bar and ins
 - **Copyable status** — Click any status text to copy for support/debugging
 - **Native & lightweight** — Built with SwiftUI + AppKit, no Electron
 
-## Screenshots
-
-(Upload your screenshots to a `screenshots/` folder and update the links)
-
-**Menu bar examples:**
-
-![Green icon](screenshots/green.png)
-![Red icon](screenshots/red.png)
-
-**Dropdown menu & Settings:**
-
-![OctoBar menu](screenshots/menu.png)
-
 ## Installation
 
 1. Download the latest `.zip` from the [Releases page](https://github.com/jacko0/octobar/releases/latest)
